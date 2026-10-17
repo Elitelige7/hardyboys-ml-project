@@ -1,0 +1,83 @@
+.result-card {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background-color: #f9f9f9;
+}
+
+.result-header {
+  margin-top: 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+/* Sentiment Badges */
+.badge {
+  display: inline-block;
+  padding: 6px 14px;
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 20px;
+  color: #ffffff;
+  text-transform: capitalize;
+}
+
+.badge.positive {
+  background-color: #28a745; /* Green badge */
+}
+
+.badge.negative {
+  background-color: #dc3545; /* Red badge */
+}
+
+.confidence-text {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #666;
+} 
+
+
+
+.dashboard-container {
+  margin-top: 40px;
+  padding: 20px;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+
+.metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.metrics-table th, 
+.metrics-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.metrics-table th {
+  background-color: #f4f6f8;
+  font-weight: 600;
+  color: #333;
+}
+
+.metrics-table tr:hover {
+  background-color: #f9f9f9;
+}
+
+.metric-value {
+  font-weight: bold;
+  color: #0056b3;
+}
+
+.placeholder-text {
+  text-align: center;
+  color: #888;
+  font-style: italic;
+}
+
