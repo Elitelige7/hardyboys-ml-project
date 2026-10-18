@@ -7,3 +7,9 @@ Kasaan Dornelus
 
 
 MLFlow Pro: Movie Reviewer
+
+## 🚀 Live Demo
+[Open MLFlowPro](https://hardyboys-ml-project.onrender.com/)
+
+### 🎥 Project Walkthrough
+![Project Demo Walkthrough](demo.gif)
