@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from django.views.generic import TemplateView
 
 from experiments.views import (
     ExperimentViewSet,
@@ -19,4 +20,5 @@ urlpatterns = [
     path("api/predict/", predict_review, name="predict-review"),
     path("api/", include(router.urls)),
     path("api-auth/", include("rest_framework.urls")),
+    path("", TemplateView.as_view(template_name="index.html"), name="dashboard"),
 ]

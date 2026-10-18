@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.permissions import AllowAny
 from rest_framework import viewsets
 from .models import Experiment, ModelSettings, ExperimentResult
@@ -23,8 +24,7 @@ class ModelSettingsViewSet(viewsets.ModelViewSet):
 class ExperimentResultViewSet(viewsets.ModelViewSet):
     queryset = ExperimentResult.objects.all().order_by("-created_at")
     serializer_class = ExperimentResultSerializer
-    permission_classes = [AllowAny]
-
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     from pathlib import Path
 import joblib
