@@ -6,6 +6,7 @@ from experiments.views import (
     ExperimentViewSet,
     ModelSettingsViewSet,
     ExperimentResultViewSet,
+    predict_review,
 )
 
 router = DefaultRouter()
@@ -15,6 +16,7 @@ router.register("experiment-results", ExperimentResultViewSet)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/predict/", predict_review, name="predict-review"),
     path("api/", include(router.urls)),
     path("api-auth/", include("rest_framework.urls")),
 ]
