@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from rest_framework.permissions import AllowAny
 from rest_framework import viewsets
 from .models import Experiment, ModelSettings, ExperimentResult
 from .serializers import (
@@ -22,6 +23,7 @@ class ModelSettingsViewSet(viewsets.ModelViewSet):
 class ExperimentResultViewSet(viewsets.ModelViewSet):
     queryset = ExperimentResult.objects.all().order_by("-created_at")
     serializer_class = ExperimentResultSerializer
+    permission_classes = [AllowAny]
 
 
     from pathlib import Path

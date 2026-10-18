@@ -106,7 +106,7 @@
       tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center;">Loading...</td></tr>`;
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/experiments/`, { method: 'GET' });
+        const response = await fetch(`${API_BASE_URL}/api/experiment-results/`, { method: 'GET' });
         if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
         const experiments = await response.json();
         
