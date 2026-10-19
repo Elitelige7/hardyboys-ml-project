@@ -56,11 +56,30 @@
         <tr><td colspan="3" style="text-align:center; color:#888;">Click "Load Experiment Metrics" to fetch logged data.</td></tr>
       </tbody>
     </table>
+    <!-- MLFlowPro: D3 experiment chart -->
+    <section style="margin-top:24px;" aria-labelledby="experiment-chart-heading">
+      <h3 id="experiment-chart-heading">Experiment history</h3>
+      <label for="chart-metric">Chart metric:</label>
+      <select id="chart-metric" style="padding:6px; margin:0 0 10px 6px;">
+        <option value="both">Accuracy and macro F1</option>
+        <option value="accuracy">Accuracy</option>
+        <option value="f1_score">Macro F1</option>
+      </select>
+      <p style="font-size:13px; color:#666;">
+        Up to six latest logged results. Run numbers identify experiments.
+        Hover over a bar to see its score.
+      </p>
+      <div id="experiment-chart" aria-live="polite">
+        Click "Load Experiment Metrics" to draw the chart.
+      </div>
+    </section>
+
   </div>
 
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
-  <script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script>
     const API_BASE_URL = '';
 
     
@@ -121,6 +140,7 @@
         const response = await fetch(`${API_BASE_URL}/api/experiment-results/`, { method: 'GET' });
         if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
         const experiments = await response.json();
+        renderExperimentChart(experiments);
         
         tableBody.innerHTML = '';
         experiments.forEach(exp => {
@@ -169,6 +189,94 @@
     },
   });
 });
+  
+    // MLFlowPro: D3 chart, using the same response as the existing metrics table.
+    let experimentChartResults = [];
+
+    function renderExperimentChart(results) {
+      if (Array.isArray(results)) experimentChartResults = results;
+      const host = document.getElementById('experiment-chart');
+      host.replaceChildren();
+      if (!window.d3) {
+        host.textContent = 'Chart library could not load. Check your connection and refresh.';
+        return;
+      }
+
+      const rows = experimentChartResults.filter(row =>
+        [row.accuracy, row.f1_score].every(value =>
+          typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1
+        )
+      ).slice().sort((a, b) => {
+        const timeA = Date.parse(a.created_at) || 0;
+        const timeB = Date.parse(b.created_at) || 0;
+        return timeB - timeA || Number(b.id || 0) - Number(a.id || 0);
+      }).slice(0, 6);
+
+      if (!rows.length) {
+        host.textContent = 'No logged scores are available yet.';
+        return;
+      }
+      const names = {
+        logistic_regression: 'Logistic Regression',
+        naive_bayes: 'Naive Bayes',
+      };
+      const nameOf = row => {
+        const raw = String(row.model_name || 'Unknown model');
+        return names[raw.trim().toLowerCase().replace(/[\s-]+/g, '_')] || raw;
+      };
+      const choice = document.getElementById('chart-metric').value;
+      const metrics = [
+        {key:'accuracy', label:'Accuracy', color:'#0056b3'},
+        {key:'f1_score', label:'Macro F1', color:'#218838'},
+      ].filter(metric => choice === 'both' || choice === metric.key);
+      const width = 760;
+      const left = 220;
+      const right = 75;
+      const top = 42;
+      const rowHeight = 65;
+      const height = top + rows.length * rowHeight + 35;
+      const x = d3.scaleLinear().domain([0, 1]).range([left, width - right]);
+      const svg = d3.select(host).append('svg')
+        .attr('width', width).attr('height', height)
+        .attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('role', 'img')
+        .attr('aria-label', 'Logged accuracy and macro F1 by experiment run')
+        .style('max-width', '100%').style('height', 'auto');
+
+      metrics.forEach((metric, index) => {
+        svg.append('rect').attr('x', left + index * 150).attr('y', 9)
+          .attr('width', 12).attr('height', 12).attr('fill', metric.color);
+        svg.append('text').attr('x', left + 18 + index * 150).attr('y', 19)
+          .attr('font-size', 12).text(metric.label);
+      });
+      svg.append('g').attr('transform', `translate(0,${height - 29})`)
+        .call(d3.axisBottom(x).ticks(5).tickFormat(d3.format('.0%')))
+        .attr('font-size', 12);
+
+      rows.forEach((row, index) => {
+        const baseY = top + index * rowHeight;
+        svg.append('text').attr('x', left - 12).attr('y', baseY + 20)
+          .attr('text-anchor', 'end').attr('font-size', 12)
+          .text(`${nameOf(row)} / Run ${row.experiment}`);
+        metrics.forEach((metric, metricIndex) => {
+          const value = row[metric.key];
+          const y = baseY + metricIndex * 23;
+          const label = `${nameOf(row)}, Run ${row.experiment}: ${metric.label} ${(value * 100).toFixed(2)}%`;
+          svg.append('rect').attr('class', 'experiment-score-bar')
+            .attr('data-result-id', row.id).attr('data-metric', metric.key)
+            .attr('data-score', value)
+            .attr('x', left).attr('y', y).attr('width', x(value) - left)
+            .attr('height', 17).attr('rx', 2).attr('fill', metric.color)
+            .attr('tabindex', 0).attr('aria-label', label)
+            .append('title').text(label);
+          svg.append('text').attr('x', x(value) + 7).attr('y', y + 13)
+            .attr('font-size', 12).text(`${(value * 100).toFixed(2)}%`);
+        });
+      });
+    }
+
+    document.getElementById('chart-metric').addEventListener('change', () => renderExperimentChart());
+
   </script>
 </body>
 </html>
