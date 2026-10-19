@@ -1,0 +1,23 @@
+.git
+.github
+**/.venv
+**/venv
+**/__pycache__
+**/*.py[cod]
+**/.env*
+**/.pytest_cache
+**/.coverage*
+**/node_modules
+**/.vscode
+**/.DS_Store
+**/Thumbs.db
+**/*.sqlite3*
+**/staticfiles
+data
+local_jobs
+models/versions
+docs/_build
+demo.gif
+*.zip
+
+# Keep models/*.joblib and published_models/: startup restores these models.

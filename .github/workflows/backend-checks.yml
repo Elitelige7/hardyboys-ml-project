@@ -39,3 +39,35 @@ jobs:
         run: python backend/manage.py collectstatic --noinput
       - name: Run tests
         run: python -m pytest -q
+
+  # MLFlowPro: container build and smoke check
+  container-smoke:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Set up Python for the HTTP check
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Build application image
+        run: docker build --tag mlflowpro-ci .
+      - name: Start application container with an isolated demo database
+        run: >-
+          docker run --detach --name mlflowpro-ci
+          --publish 127.0.0.1:8000:8000
+          --env DJANGO_SECRET_KEY=ci-only-container-test-key-never-use-in-production
+          --env DJANGO_DEBUG=True
+          mlflowpro-ci
+      - name: Check homepage, results, and model predictions
+        run: python container_smoke.py
+      - name: Show container logs
+        if: always()
+        run: docker logs mlflowpro-ci
+      - name: Remove test container
+        if: always()
+        run: docker rm --force mlflowpro-ci
