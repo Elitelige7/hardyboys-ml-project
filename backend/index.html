@@ -3,127 +3,57 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Movie Sentiment Analysis & Experiment Dashboard</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: 30px auto; padding: 0 20px; color: #333; }
-    .card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; margin-bottom: 30px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    textarea { width: 100%; box-sizing: border-box; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-    button { background-color: #0056b3; color: white; border: none; padding: 10px 18px; border-radius: 4px; cursor: pointer; font-size: 14px; }
-    button:disabled { background-color: #aaa; cursor: not-allowed; }
-    .badge { display: inline-block; padding: 6px 14px; font-weight: bold; border-radius: 20px; color: #fff; margin-top: 8px; }
-    .badge.positive { background-color: #28a745; }
-    .badge.negative { background-color: #dc3545; }
-    .metrics-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    .metrics-table th, .metrics-table td { padding: 12px; border-bottom: 1px solid #e0e0e0; text-align: left; }
-    .metrics-table th { background-color: #f4f6f8; }
-    .metric-val { font-weight: bold; color: #0056b3; }
-    .error { color: #dc3545; margin-top: 10px; }
-  </style>
+  <title>MLFlowPro - Movie Review Sentiment Analysis</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- STEP 1 & 2: Review Input & Result Display -->
-  <div class="card">
-    <h2>1. Live Review Sentiment Inference</h2>
-    <form id="review-form">
-      <label for="review-text"><strong>Enter Movie Review:</strong></label>
-      <textarea id="review-text" rows="5" placeholder="e.g., The acting was brilliant and the story kept me engaged throughout!" required></textarea>
-      <button type="submit" id="submit-btn">Analyze Sentiment</button>
-    </form>
-    <div id="result-container"></div>
-  </div>
+  <div class="container">
+    <h1>🎬 MLFlowPro Sentiment Classifier</h1>
 
-  <!-- STEP 3: Experiment Dashboard -->
-  <div class="card">
-    <h2>2. Model Performance Comparison</h2>
-    <button id="refresh-metrics-btn">Load Experiment Metrics</button>
-    <table class="metrics-table">
-      <thead>
-        <tr>
-          <th>Model</th>
-          <th>Accuracy</th>
-          <th>F1 Score</th>
-        </tr>
-      </thead>
-      <tbody id="metrics-table-body">
-        <tr><td colspan="3" style="text-align:center; color:#888;">Click "Load Experiment Metrics" to fetch logged data.</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <script>
-    const API_BASE_URL = 'http://127.0.0.1:8000'; // Update to match backend API URL
-
-    // 1. Submit Review Handler (Step 1 & Step 2)
-    document.getElementById('review-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const reviewText = document.getElementById('review-text').value.trim();
-      const submitBtn = document.getElementById('submit-btn');
-      const resultContainer = document.getElementById('result-container');
-
-      if (!reviewText) return;
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Analyzing...';
-
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/predict/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ review: reviewText }),
-        });
-
-        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-        const data = await response.json();
-        renderPredictionResult(data);
-      } catch (err) {
-        resultContainer.innerHTML = `<p class="error">Error submitting review. Verify Django server status.</p>`;
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Analyze Sentiment';
-      }
-    });
-
-    function renderPredictionResult(data) {
-      const resultContainer = document.getElementById('result-container');
-      const sentiment = data.prediction || 'Unknown';
-      const confidence = data.confidence ? (data.confidence * 100).toFixed(1) + '%' : 'N/A';
-      const isPos = sentiment.toLowerCase() === 'positive';
-
-      resultContainer.innerHTML = `
-        <div style="margin-top: 15px;">
-          <h3>Prediction Result:</h3>
-          <span class="badge ${isPos ? 'positive' : 'negative'}">${sentiment}</span>
-          <p style="margin-top: 8px; font-size: 0.9rem;">Confidence: <strong>${confidence}</strong></p>
-        </div>
-      `;
-    }
-
-    // 2. Fetch Metrics Handler (Step 3)
-    document.getElementById('refresh-metrics-btn').addEventListener('click', fetchExperimentMetrics);
-
-    async function fetchExperimentMetrics() {
-      const tableBody = document.getElementById('metrics-table-body');
-      tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center;">Loading...</td></tr>`;
-
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/experiments/`, { method: 'GET' });
-        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-        const experiments = await response.json();
+    <!-- 1. Review Inference Form -->
+    <div class="card">
+      <h2>1. Live Review Inference</h2>
+      <form id="review-form">
+        <label for="review-input"><strong>Enter Movie Review:</strong></label>
+        <textarea id="review-input" rows="4" placeholder="e.g., The acting was brilliant and the story kept me engaged throughout!" required></textarea>
         
-        tableBody.innerHTML = '';
-        experiments.forEach(exp => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td><strong>${exp.model_name}</strong></td>
-            <td class="metric-val">${(exp.accuracy * 100).toFixed(2)}%</td>
-            <td class="metric-val">${(exp.f1_score * 100).toFixed(2)}%</td>
-          `;
-          tableBody.appendChild(row);
-        });
-      } catch (err) {
-        tableBody.innerHTML = `<tr><td colspan="3" class="error" style="text-align:center;">Failed to load metrics.</td></tr>`;
-      }
-    }
-  </script>
+        <label for="model-select"><strong>Select Model Baseline:</strong></label>
+        <select id="model-select">
+          <option value="naive_bayes">Multinomial Naive Bayes</option>
+          <option value="logistic_regression">Logistic Regression</option>
+        </select>
+
+        <button type="submit" id="submit-btn">Analyze Sentiment</button>
+      </form>
+
+      <div id="result-container" class="result-card hidden">
+        <h3>Prediction Result:</h3>
+        <span id="result-sentiment" class="badge"></span>
+        <p id="result-confidence" class="confidence-text"></p>
+      </div>
+    </div>
+
+    <!-- 2. Experiment Metrics Dashboard -->
+    <div class="card">
+      <h2>2. Model Performance Dashboard</h2>
+      <button id="refresh-metrics-btn">Refresh MLflow Runs</button>
+      
+      <table class="metrics-table">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Accuracy</th>
+            <th>F1 Score</th>
+          </tr>
+        </thead>
+        <tbody id="metrics-table-body">
+          <tr><td colspan="3" class="placeholder-text">Click "Refresh MLflow Runs" to fetch logged experiment data.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
