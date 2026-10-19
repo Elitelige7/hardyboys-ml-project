@@ -63,3 +63,13 @@ class ModelVersion(models.Model):
 
     def __str__(self):
         return f"{self.model_name} - {str(self.id)[:8]}"
+
+# MLFlowPro: persistent shared experiment notes
+class CollaborationNote(models.Model):
+    key = models.CharField(max_length=40, primary_key=True, default="team")
+    body = models.TextField(blank=True, default="")
+    revision = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "Shared experiment notes"

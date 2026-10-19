@@ -1,4 +1,4 @@
-"""Initialize the container's database and model files, then start Gunicorn."""
+"""Initialize the container's database and model files, then start Daphne."""
 
 import os
 from pathlib import Path
@@ -23,13 +23,7 @@ def main():
         print("Running:", " ".join(arguments), flush=True)
         subprocess.run([sys.executable, *arguments], cwd=ROOT, check=True)
 
-    arguments = [
-        sys.executable, "-m", "gunicorn", "--chdir", str(ROOT / "backend"),
-        "MLFlowPro.wsgi:application", "--bind", "0.0.0.0:" + os.getenv("PORT", "8000"),
-        "--workers", os.getenv("WEB_CONCURRENCY", "1"), "--timeout", "120",
-        "--access-logfile", "-", "--error-logfile", "-",
-    ]
-    os.execv(sys.executable, arguments)
+    os.execv(sys.executable, [sys.executable, str(ROOT / "run_asgi.py")])
 
 
 if __name__ == "__main__":

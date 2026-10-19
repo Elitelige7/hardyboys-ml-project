@@ -17,7 +17,11 @@ router.register("model-settings", ModelSettingsViewSet)
 router.register("experiment-results", ExperimentResultViewSet)
 router.register("model-versions", ModelVersionViewSet, basename="model-version",)
 
+# MLFlowPro: AI experiment suggestions
+from experiments.ai_suggestions import suggest_experiment
+
 urlpatterns = [
+    path("api/ai-suggestions/", suggest_experiment, name="ai-suggestions"),
     path("admin/", admin.site.urls),
     path("api/predict/", predict_review, name="predict-review"),
     path("api/", include(router.urls)),

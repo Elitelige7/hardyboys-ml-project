@@ -76,7 +76,43 @@
 
   </div>
 
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- MLFlowPro: AI experiment suggestions -->
+  <div class="card" id="ai-suggestions-card">
+    <h2>3. AI Experiment Suggestions</h2>
+    <p>Ask for experiment settings and a Python snippet using the model selected above.</p>
+    <form id="ai-suggestion-form" autocomplete="off">
+      <label for="ai-access-code"><strong>Team AI access code:</strong></label>
+      <input id="ai-access-code" type="password" required autocomplete="off"
+             style="display:block; width:100%; box-sizing:border-box; padding:10px; margin:10px 0; border:1px solid #ccc; border-radius:4px;">
+      <label for="ai-experiment-goal"><strong>What would you like to try?</strong></label>
+      <textarea id="ai-experiment-goal" rows="3" maxlength="1200" required>Suggest two Logistic Regression C values and explain how to compare them using cross-validation.</textarea>
+      <button type="submit" id="ai-suggestion-btn">Suggest Experiment</button>
+    </form>
+    <p id="ai-suggestion-status" role="status" aria-live="polite"></p>
+    <pre id="ai-suggestion-output" hidden style="white-space:pre-wrap; overflow-wrap:anywhere; padding:15px; background:#f4f6f8; border-radius:4px; line-height:1.5;"></pre>
+  </div>
+
+
+  <!-- MLFlowPro: shared experiment notes -->
+  <div class="card" id="collaboration-card">
+    <h2>4. Shared Experiment Notes</h2>
+    <p>Plan your next experiment together. Saved notes update in other connected tabs.</p>
+    <form id="collaboration-connect-form" autocomplete="off">
+      <label for="collaboration-access-code"><strong>Team access code:</strong></label>
+      <input id="collaboration-access-code" type="password" required maxlength="512" autocomplete="off"
+             style="display:block; width:100%; box-sizing:border-box; padding:10px; margin:10px 0; border:1px solid #ccc; border-radius:4px;">
+      <button type="submit" id="collaboration-connect-btn">Connect</button>
+    </form>
+    <p id="collaboration-status" role="status" aria-live="polite">Connect with the same team code used for AI suggestions.</p>
+    <label for="collaboration-notes"><strong>Experiment planning notes:</strong></label>
+    <textarea id="collaboration-notes" rows="5" maxlength="4000" disabled
+              placeholder="e.g., Compare C=1 and C=2 using training-only cross-validation."></textarea>
+    <button type="button" id="collaboration-save-btn" disabled>Save Notes</button>
+    <button type="button" id="collaboration-load-btn" disabled>Load Latest Notes</button>
+  </div>
+
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 <script>
@@ -278,5 +314,174 @@
     document.getElementById('chart-metric').addEventListener('change', () => renderExperimentChart());
 
   </script>
+  <!-- MLFlowPro: AI suggestion handler -->
+  <script>
+    (() => {
+      const form = document.getElementById('ai-suggestion-form');
+      const button = document.getElementById('ai-suggestion-btn');
+      const status = document.getElementById('ai-suggestion-status');
+      const output = document.getElementById('ai-suggestion-output');
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (button.disabled) return;
+        const goal = document.getElementById('ai-experiment-goal').value.trim();
+        const code = document.getElementById('ai-access-code').value.trim();
+        if (!goal || !code) return;
+        button.disabled = true;
+        button.textContent = 'Generating...';
+        status.className = '';
+        status.textContent = 'Preparing an experiment suggestion...';
+        output.hidden = true;
+        output.textContent = '';
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 25000);
+        try {
+          const selected = document.getElementById('model-version');
+          const base = typeof API_BASE_URL === 'string' ? API_BASE_URL : '';
+          const response = await fetch(`${base}/api/ai-suggestions/`, {
+            method: 'POST', signal: controller.signal,
+            headers: {'Content-Type': 'application/json', 'X-MLFlowPro-Access-Code': code},
+            body: JSON.stringify({goal, version_id: selected ? selected.value || null : null}),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || 'Could not generate a suggestion.');
+          if (typeof data.suggestion !== 'string') throw new Error('The suggestion was empty.');
+          output.textContent = data.suggestion;
+          output.hidden = false;
+          status.textContent = `${data.notice} AI model: ${data.model}.`;
+        } catch (error) {
+          status.className = 'error';
+          status.textContent = error.name === 'AbortError'
+            ? 'The request took too long. Please try again.'
+            : error.message || 'Could not generate a suggestion.';
+        } finally {
+          clearTimeout(timeout);
+          button.disabled = false;
+          button.textContent = 'Suggest Experiment';
+        }
+      });
+    })();
+  </script>
+
+
+  <!-- MLFlowPro: shared experiment notes handler -->
+  <script>
+    (() => {
+      const form = document.getElementById('collaboration-connect-form');
+      const connectButton = document.getElementById('collaboration-connect-btn');
+      const saveButton = document.getElementById('collaboration-save-btn');
+      const loadButton = document.getElementById('collaboration-load-btn');
+      const notes = document.getElementById('collaboration-notes');
+      const status = document.getElementById('collaboration-status');
+      let socket = null;
+      let authorized = false;
+      let baseRevision = 0;
+      let savedBody = '';
+      let latest = null;
+      let pendingBody = null;
+      let heartbeat = null;
+      const dirty = () => notes.value !== savedBody;
+
+      function setDocument(document) {
+        latest = document;
+        notes.value = document.body;
+        savedBody = document.body;
+        baseRevision = document.revision;
+        status.textContent = `Connected. Saved revision ${baseRevision}.`;
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return;
+        const code = document.getElementById('collaboration-access-code').value.trim();
+        if (!code) return;
+        connectButton.disabled = true;
+        status.className = '';
+        status.textContent = 'Connecting to shared notes...';
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const active = new WebSocket(`${protocol}//${location.host}/ws/experiment-notes/`);
+        socket = active;
+        active.addEventListener('open', () => {
+          active.send(JSON.stringify({type: 'authenticate', access_code: code}));
+        });
+        active.addEventListener('message', (event) => {
+          let message;
+          try { message = JSON.parse(event.data); } catch (_) { return; }
+          if (message.type === 'ready') {
+            authorized = true;
+            notes.disabled = saveButton.disabled = loadButton.disabled = false;
+            connectButton.textContent = 'Connected';
+            const hadDraft = dirty();
+            if (!hadDraft) setDocument(message.document);
+            else {
+              latest = message.document;
+              status.textContent = 'Reconnected. Your draft is preserved. Copy it before loading the latest notes.';
+            }
+            clearInterval(heartbeat);
+            heartbeat = setInterval(() => {
+              if (active.readyState === WebSocket.OPEN) active.send(JSON.stringify({type:'ping'}));
+            }, 25000);
+          } else if (message.type === 'document' || message.type === 'conflict') {
+            const incoming = message.document;
+            if (latest && incoming.revision < latest.revision) return;
+            latest = incoming;
+            saveButton.disabled = pendingBody !== null && !message.own_save && message.type !== 'conflict';
+            if (message.type === 'conflict') {
+              pendingBody = null;
+              status.textContent = 'A teammate saved newer notes. Your draft is preserved. Copy it, then choose Load Latest Notes.';
+            } else if (message.own_save) {
+              const editedAfterSend = notes.value !== pendingBody;
+              savedBody = incoming.body;
+              baseRevision = incoming.revision;
+              pendingBody = null;
+              if (!editedAfterSend) setDocument(incoming);
+              else status.textContent = `Saved revision ${baseRevision}. You have additional unsaved changes.`;
+            } else if (!dirty()) setDocument(incoming);
+            else status.textContent = 'Newer shared notes are available. Your unsaved draft is preserved. Copy it before loading the latest notes.';
+          } else if (message.type === 'error') {
+            status.className = 'error';
+            status.textContent = message.error;
+            if (authorized) saveButton.disabled = false;
+            pendingBody = null;
+          }
+        });
+        active.addEventListener('error', () => {
+          status.className = 'error';
+          status.textContent = 'Could not connect to shared notes. Check the server and try Connect again.';
+        });
+        active.addEventListener('close', () => {
+          clearInterval(heartbeat);
+          authorized = false;
+          saveButton.disabled = loadButton.disabled = true;
+          connectButton.disabled = false;
+          connectButton.textContent = 'Connect';
+          pendingBody = null;
+          if (!status.classList.contains('error')) status.textContent = 'Disconnected. Your draft is preserved. Click Connect to reconnect.';
+        });
+      });
+
+      notes.addEventListener('input', () => {
+        status.textContent = latest && latest.revision > baseRevision
+          ? 'Your draft uses an older revision. Copy it before loading the latest shared notes.'
+          : dirty() ? 'Unsaved changes.' : `Connected. Saved revision ${baseRevision}.`;
+      });
+      saveButton.addEventListener('click', () => {
+        if (!authorized || !socket || socket.readyState !== WebSocket.OPEN) return;
+        pendingBody = notes.value;
+        saveButton.disabled = true;
+        status.className = '';
+        status.textContent = 'Saving notes...';
+        socket.send(JSON.stringify({type:'save', body:pendingBody, revision:baseRevision,
+                                   request_id:Date.now().toString(36) + Math.random().toString(36).slice(2)}));
+      });
+      loadButton.addEventListener('click', () => {
+        if (authorized && latest) { pendingBody = null; setDocument(latest); }
+      });
+      window.addEventListener('pagehide', () => { clearInterval(heartbeat); if(socket) socket.close(); });
+    })();
+  </script>
+
+
 </body>
 </html>

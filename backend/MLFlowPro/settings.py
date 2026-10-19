@@ -173,3 +173,13 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# MLFlowPro: WebSocket collaboration settings
+if "daphne" not in INSTALLED_APPS:
+    INSTALLED_APPS.insert(0, "daphne")
+if "channels" not in INSTALLED_APPS:
+    INSTALLED_APPS.append("channels")
+ASGI_APPLICATION = "MLFlowPro.asgi.application"
+CHANNEL_LAYERS = {
+    "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"},
+}
