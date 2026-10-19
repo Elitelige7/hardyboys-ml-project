@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from django.views.generic import TemplateView
+from experiments.views import ModelVersionViewSet
 
 from experiments.views import (
     ExperimentViewSet,
@@ -14,6 +15,7 @@ router = DefaultRouter()
 router.register("experiments", ExperimentViewSet)
 router.register("model-settings", ModelSettingsViewSet)
 router.register("experiment-results", ExperimentResultViewSet)
+router.register("model-versions", ModelVersionViewSet, basename="model-version",)
 
 urlpatterns = [
     path("admin/", admin.site.urls),

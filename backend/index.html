@@ -28,6 +28,13 @@
     <form id="review-form">
       <label for="review-text"><strong>Enter Movie Review:</strong></label>
       <textarea id="review-text" rows="5" placeholder="e.g., The acting was brilliant and the story kept me engaged throughout!" required></textarea>
+
+      <label for="model-version"><strong>Choose model:</strong></label>
+      <select id="model-version" style="width:100%; padding:10px; margin:10px 0; font-size:14px;">
+        <option value="">Original Logistic Regression</option>
+      </select>
+      <p id="model-version-status" style="font-size:13px; color:#666;"></p>
+
       <button type="submit" id="submit-btn">Analyze Sentiment</button>
     </form>
     <div id="result-container"></div>
@@ -51,10 +58,12 @@
     </table>
   </div>
 
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
   <script>
     const API_BASE_URL = '';
 
-    // 1. Submit Review Handler (Step 1 & Step 2)
+    
     document.getElementById('review-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const reviewText = document.getElementById('review-text').value.trim();
@@ -69,7 +78,10 @@
         const response = await fetch(`${API_BASE_URL}/api/predict/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ review: reviewText }),
+          body: JSON.stringify({
+            review: reviewText,
+            version_id: document.getElementById('model-version').value || null,
+          }),
         });
 
         if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
@@ -124,6 +136,39 @@
         tableBody.innerHTML = `<tr><td colspan="3" class="error" style="text-align:center;">Failed to load metrics.</td></tr>`;
       }
     }
+
+    $(function () {
+  $.ajax({
+    url: `${API_BASE_URL}/api/model-versions/`,
+    method: 'GET',
+
+    success: function (versions) {
+      const labels = {
+        logistic_regression: 'Logistic Regression',
+        naive_bayes: 'Naive Bayes',
+      };
+
+      versions.forEach(function (version) {
+        const name = labels[version.model_name] || version.model_name;
+
+        $('<option>')
+          .val(version.id)
+          .text(`${name} — ${version.id.slice(0, 8)}`)
+          .appendTo('#model-version');
+      });
+
+      $('#model-version-status').text(
+        `${versions.length} saved model versions available.`
+      );
+    },
+
+    error: function () {
+      $('#model-version-status').text(
+        'Could not load saved versions. Check the Django server.'
+      );
+    },
+  });
+});
   </script>
 </body>
 </html>
