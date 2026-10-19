@@ -1,4 +1,26 @@
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
+let metricsChartInstance = null;
+
+// Initialize app data on load
+document.addEventListener('DOMContentLoaded', () => {
+  loadMetrics();
+  fetchExperimentMetrics();
+});
+
+// Load Single Metric Summary
+async function loadMetrics() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/metrics/`);
+    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+    const data = await response.json();
+    
+    const accuracy = data.accuracy !== undefined ? (data.accuracy * 100).toFixed(1) : '--';
+    document.getElementById('accuracy-value').innerText = `${accuracy}%`;
+  } catch (error) {
+    console.error('Failed to load summary metrics:', error);
+    document.getElementById('accuracy-value').innerText = 'N/A';
+  }
+}
 
 // Handle Sentiment Form Submission
 document.getElementById('review-form').addEventListener('submit', async (e) => {
@@ -50,7 +72,7 @@ document.getElementById('review-form').addEventListener('submit', async (e) => {
   }
 });
 
-// Fetch MLflow Experiment Runs
+// Fetch MLflow Experiment Runs & Render Chart
 document.getElementById('refresh-metrics-btn').addEventListener('click', fetchExperimentMetrics);
 
 async function fetchExperimentMetrics() {
@@ -69,6 +91,9 @@ async function fetchExperimentMetrics() {
       return;
     }
 
+    const labels = [];
+    const accuracyScores = [];
+
     experiments.forEach((exp) => {
       const row = document.createElement('tr');
       row.innerHTML = `
@@ -77,12 +102,40 @@ async function fetchExperimentMetrics() {
         <td class="metric-value">${(exp.f1_score * 100).toFixed(2)}%</td>
       `;
       tableBody.appendChild(row);
+
+      labels.push(exp.model_name);
+      accuracyScores.push((exp.accuracy * 100).toFixed(1));
     });
+
+    renderMetricsChart(labels, accuracyScores);
   } catch (error) {
     console.error('Error fetching experiment metrics:', error);
     tableBody.innerHTML = `<tr><td colspan="3" class="placeholder-text error">Failed to load metrics. Check Django API connection.</td></tr>`;
   }
 }
 
-// Automatically load metrics on startup
-document.addEventListener('DOMContentLoaded', fetchExperimentMetrics);
+// Optional Chart.js Render Function
+function renderMetricsChart(labels, data) {
+  const ctx = document.getElementById('metricsChart').getContext('2d');
+  if (metricsChartInstance) {
+    metricsChartInstance.destroy();
+  }
+
+  metricsChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Accuracy (%)',
+        data: data,
+        backgroundColor: '#0056b3'
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { beginAtZero: true, max: 100 }
+      }
+    }
+  });
+}

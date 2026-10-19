@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MLFlowPro - Movie Review Sentiment Analysis</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Chart.js library for rendering the canvas chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -37,6 +39,14 @@
     <!-- 2. Experiment Metrics Dashboard -->
     <div class="card">
       <h2>2. Model Performance Dashboard</h2>
+      
+      <div class="dashboard-summary">
+        <div class="metric-card">
+          <h3>Latest Model Accuracy</h3>
+          <p id="accuracy-value">--%</p>
+        </div>
+      </div>
+
       <button id="refresh-metrics-btn">Refresh MLflow Runs</button>
       
       <table class="metrics-table">
@@ -51,9 +61,13 @@
           <tr><td colspan="3" class="placeholder-text">Click "Refresh MLflow Runs" to fetch logged experiment data.</td></tr>
         </tbody>
       </table>
+
+      <div class="chart-container" style="margin-top: 25px;">
+        <canvas id="metricsChart"></canvas>
+      </div>
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <script src="script.js" defer></script>
 </body>
 </html>

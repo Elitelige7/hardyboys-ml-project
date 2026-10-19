@@ -99,6 +99,30 @@ button:disabled {
   color: #666;
 }
 
+.dashboard-summary {
+  margin-bottom: 20px;
+}
+
+.metric-card {
+  padding: 16px;
+  border-radius: 8px;
+  background-color: #f4f4f9;
+  border-left: 4px solid #0056b3;
+}
+
+.metric-card h3 {
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+  color: #666;
+}
+
+.metric-card p {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #0056b3;
+}
+
 .metrics-table {
   width: 100%;
   border-collapse: collapse;
