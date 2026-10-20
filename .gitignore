@@ -219,3 +219,6 @@ __marimo__/
 
 models/versions/
 local_jobs/
+
+# Generated documentation and local runtime files
+docs/build/

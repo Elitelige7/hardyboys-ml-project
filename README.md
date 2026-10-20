@@ -168,3 +168,16 @@ OAuth2, and Kubernetes deployment are outside the current implementation.
 3. Push the branch and open a pull request.
 4. Review changes before merging into `main`.
 5. Each team member commits their own contributions.
+
+<!-- MLFlowPro: Sphinx handbook -->
+## Project handbook
+
+See [the documentation guide](docs/README.md) for setup, architecture, training
+and tuning, API usage, evaluation, deployment, and current limitations.
+
+Build the searchable HTML handbook from the repository root:
+
+```powershell
+python -m pip install -r requirements-docs.txt
+python -m sphinx -n -W --keep-going -b html docs/source docs/build/html
+```
