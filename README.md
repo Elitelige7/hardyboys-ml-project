@@ -19,7 +19,7 @@ accounts. The responsibilities below describe their actual work:
 
 ## 🚀 Live Demo
 
-**Application URL:** [Open MLFlowPro](https://hardyboys-ml-project.onrender.com/)
+**Live Demo:** [Open MLFlowPro](https://hardyboys-ml-project.onrender.com/)
 
 The application must remain functional and accessible during the presentation.
 Public predictions and results are available without signing in. GitHub team
