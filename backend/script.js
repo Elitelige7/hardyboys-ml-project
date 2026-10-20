@@ -13,7 +13,7 @@ async function loadMetrics() {
     const response = await fetch(`${API_BASE_URL}/metrics/`);
     if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
     const data = await response.json();
-    
+
     const accuracy = data.accuracy !== undefined ? (data.accuracy * 100).toFixed(1) : '--';
     document.getElementById('accuracy-value').innerText = `${accuracy}%`;
   } catch (error) {
@@ -52,15 +52,15 @@ document.getElementById('review-form').addEventListener('submit', async (e) => {
     const data = await response.json();
 
     const sentiment = data.prediction || 'Unknown';
-    const confidence = data.confidence_score !== undefined 
-      ? `${(data.confidence_score * 100).toFixed(1)}%` 
+    const confidence = data.confidence_score !== undefined
+      ? `${(data.confidence_score * 100).toFixed(1)}%`
       : 'N/A';
     const isPos = sentiment.toLowerCase() === 'positive';
 
     resultSentiment.textContent = sentiment;
     resultSentiment.className = `badge ${isPos ? 'positive' : 'negative'}`;
     resultConfidence.textContent = `Confidence: ${confidence}`;
-    
+
     resultContainer.classList.remove('hidden');
     document.getElementById('review-input').value = '';
   } catch (error) {
@@ -82,7 +82,7 @@ async function fetchExperimentMetrics() {
   try {
     const response = await fetch(`${API_BASE_URL}/experiments/`);
     if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-    
+
     const experiments = await response.json();
     tableBody.innerHTML = '';
 

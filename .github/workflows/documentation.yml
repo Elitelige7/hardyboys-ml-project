@@ -1,0 +1,39 @@
+name: Documentation
+
+"on":
+  push:
+    paths:
+      - "docs/**"
+      - "requirements-docs.txt"
+      - "add_project_docs.py"
+      - ".github/workflows/documentation.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "requirements-docs.txt"
+      - "add_project_docs.py"
+      - ".github/workflows/documentation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+      - name: Install documentation dependencies
+        run: python -m pip install -r requirements-docs.txt
+      - name: Build project handbook
+        run: python -m sphinx -n -W --keep-going -b html docs/source docs/build/html

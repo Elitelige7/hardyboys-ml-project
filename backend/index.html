@@ -3,71 +3,508 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MLFlowPro - Movie Review Sentiment Analysis</title>
-  <link rel="stylesheet" href="style.css">
-  <!-- Chart.js library for rendering the canvas chart -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>Movie Sentiment Analysis & Experiment Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 30px auto; padding: 0 20px; color: #333; }
+    .card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; margin-bottom: 30px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    textarea { width: 100%; box-sizing: border-box; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+    button { background-color: #0056b3; color: white; border: none; padding: 10px 18px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    button:disabled { background-color: #aaa; cursor: not-allowed; }
+    .badge { display: inline-block; padding: 6px 14px; font-weight: bold; border-radius: 20px; color: #fff; margin-top: 8px; }
+    .badge.positive { background-color: #28a745; }
+    .badge.negative { background-color: #dc3545; }
+    .metrics-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    .metrics-table th, .metrics-table td { padding: 12px; border-bottom: 1px solid #e0e0e0; text-align: left; }
+    .metrics-table th { background-color: #f4f6f8; }
+    .metric-val { font-weight: bold; color: #0056b3; }
+    .error { color: #dc3545; margin-top: 10px; }
+  </style>
 </head>
 <body>
 
-  <div class="container">
-    <h1>🎬 MLFlowPro Sentiment Classifier</h1>
-
-    <!-- 1. Review Inference Form -->
-    <div class="card">
-      <h2>1. Live Review Inference</h2>
-      <form id="review-form">
-        <label for="review-input"><strong>Enter Movie Review:</strong></label>
-        <textarea id="review-input" rows="4" placeholder="e.g., The acting was brilliant and the story kept me engaged throughout!" required></textarea>
-        
-        <label for="model-select"><strong>Select Model Baseline:</strong></label>
-        <select id="model-select">
-          <option value="naive_bayes">Multinomial Naive Bayes</option>
-          <option value="logistic_regression">Logistic Regression</option>
-        </select>
-
-        <button type="submit" id="submit-btn">Analyze Sentiment</button>
+  <!-- MLFlowPro: GitHub team sign-in -->
+  <div id="team-sign-in" style="margin-bottom:20px; padding:12px 0;">
+    {% if request.user.is_authenticated %}
+      <p>Signed in as <strong>{{ request.user.username }}</strong>.</p>
+      <form action="/team/logout/" method="post">
+        {% csrf_token %}
+        <button type="submit">Sign out</button>
       </form>
-
-      <div id="result-container" class="result-card hidden">
-        <h3>Prediction Result:</h3>
-        <span id="result-sentiment" class="badge"></span>
-        <p id="result-confidence" class="confidence-text"></p>
-      </div>
-    </div>
-
-    <!-- 2. Experiment Metrics Dashboard -->
-    <div class="card">
-      <h2>2. Model Performance Dashboard</h2>
-      
-      <div class="dashboard-summary">
-        <div class="metric-card">
-          <h3>Latest Model Accuracy</h3>
-          <p id="accuracy-value">--%</p>
-        </div>
-      </div>
-
-      <button id="refresh-metrics-btn">Refresh MLflow Runs</button>
-      
-      <table class="metrics-table">
-        <thead>
-          <tr>
-            <th>Model</th>
-            <th>Accuracy</th>
-            <th>F1 Score</th>
-          </tr>
-        </thead>
-        <tbody id="metrics-table-body">
-          <tr><td colspan="3" class="placeholder-text">Click "Refresh MLflow Runs" to fetch logged experiment data.</td></tr>
-        </tbody>
-      </table>
-
-      <div class="chart-container" style="margin-top: 25px;">
-        <canvas id="metricsChart"></canvas>
-      </div>
-    </div>
+    {% else %}
+      <form action="/accounts/github/login/" method="post">
+        {% csrf_token %}
+        <button type="submit" id="github-sign-in-btn"{% if not github_login_configured %} disabled{% endif %}>Sign in with GitHub</button>
+      </form>
+      {% if not github_login_configured %}<p style="font-size:13px; color:#666;">Team sign-in is temporarily unavailable.</p>{% endif %}
+    {% endif %}
   </div>
 
-  <script src="script.js" defer></script>
+
+
+  <!-- STEP 1 & 2: Review Input & Result Display -->
+  <div class="card">
+    <h2>1. Live Review Sentiment Inference</h2>
+    <form id="review-form">
+      {% csrf_token %}
+      <label for="review-text"><strong>Enter Movie Review:</strong></label>
+      <textarea id="review-text" rows="5" placeholder="e.g., The acting was brilliant and the story kept me engaged throughout!" required></textarea>
+
+      <label for="model-version"><strong>Choose model:</strong></label>
+      <select id="model-version" style="width:100%; padding:10px; margin:10px 0; font-size:14px;">
+        <option value="">Original Logistic Regression</option>
+      </select>
+      <p id="model-version-status" style="font-size:13px; color:#666;"></p>
+
+      <button type="submit" id="submit-btn">Analyze Sentiment</button>
+    </form>
+    <div id="result-container"></div>
+  </div>
+
+  <!-- STEP 3: Experiment Dashboard -->
+  <div class="card">
+    <h2>2. Model Performance Comparison</h2>
+    <button id="refresh-metrics-btn">Load Experiment Metrics</button>
+    <table class="metrics-table">
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>Accuracy</th>
+          <th>F1 Score</th>
+        </tr>
+      </thead>
+      <tbody id="metrics-table-body">
+        <tr><td colspan="3" style="text-align:center; color:#888;">Click "Load Experiment Metrics" to fetch logged data.</td></tr>
+      </tbody>
+    </table>
+    <!-- MLFlowPro: D3 experiment chart -->
+    <section style="margin-top:24px;" aria-labelledby="experiment-chart-heading">
+      <h3 id="experiment-chart-heading">Experiment history</h3>
+      <label for="chart-metric">Chart metric:</label>
+      <select id="chart-metric" style="padding:6px; margin:0 0 10px 6px;">
+        <option value="both">Accuracy and macro F1</option>
+        <option value="accuracy">Accuracy</option>
+        <option value="f1_score">Macro F1</option>
+      </select>
+      <p style="font-size:13px; color:#666;">
+        Up to six latest logged results. Run numbers identify experiments.
+        Hover over a bar to see its score.
+      </p>
+      <div id="experiment-chart" aria-live="polite">
+        Click "Load Experiment Metrics" to draw the chart.
+      </div>
+    </section>
+
+  </div>
+
+    <!-- MLFlowPro: AI experiment suggestions -->
+  <div class="card" id="ai-suggestions-card">
+    <h2>3. AI Experiment Suggestions</h2>
+    <p>Ask for experiment settings and a Python snippet using the model selected above.</p>
+    <form id="ai-suggestion-form" autocomplete="off">
+      <label for="ai-access-code"><strong>Team AI access code:</strong></label>
+      <input id="ai-access-code" type="password" required autocomplete="off"
+             style="display:block; width:100%; box-sizing:border-box; padding:10px; margin:10px 0; border:1px solid #ccc; border-radius:4px;">
+      <label for="ai-experiment-goal"><strong>What would you like to try?</strong></label>
+      <textarea id="ai-experiment-goal" rows="3" maxlength="1200" required>Suggest two Logistic Regression C values and explain how to compare them using cross-validation.</textarea>
+      <button type="submit" id="ai-suggestion-btn">Suggest Experiment</button>
+    </form>
+    <p id="ai-suggestion-status" role="status" aria-live="polite"></p>
+    <pre id="ai-suggestion-output" hidden style="white-space:pre-wrap; overflow-wrap:anywhere; padding:15px; background:#f4f6f8; border-radius:4px; line-height:1.5;"></pre>
+  </div>
+
+
+  <!-- MLFlowPro: shared experiment notes -->
+  <div class="card" id="collaboration-card">
+    <h2>4. Shared Experiment Notes</h2>
+    <p>Plan your next experiment together. Saved notes update in other connected tabs.</p>
+    <form id="collaboration-connect-form" autocomplete="off">
+      <label for="collaboration-access-code"><strong>Team access code:</strong></label>
+      <input id="collaboration-access-code" type="password" required maxlength="512" autocomplete="off"
+             style="display:block; width:100%; box-sizing:border-box; padding:10px; margin:10px 0; border:1px solid #ccc; border-radius:4px;">
+      <button type="submit" id="collaboration-connect-btn">Connect</button>
+    </form>
+    <p id="collaboration-status" role="status" aria-live="polite">Connect with the same team code used for AI suggestions.</p>
+    <label for="collaboration-notes"><strong>Experiment planning notes:</strong></label>
+    <textarea id="collaboration-notes" rows="5" maxlength="4000" disabled
+              placeholder="e.g., Compare C=1 and C=2 using training-only cross-validation."></textarea>
+    <button type="button" id="collaboration-save-btn" disabled>Save Notes</button>
+    <button type="button" id="collaboration-load-btn" disabled>Load Latest Notes</button>
+  </div>
+
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script>
+    const API_BASE_URL = '';
+
+    
+    document.getElementById('review-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const reviewText = document.getElementById('review-text').value.trim();
+      const submitBtn = document.getElementById('submit-btn');
+      const resultContainer = document.getElementById('result-container');
+
+      if (!reviewText) return;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Analyzing...';
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/predict/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('#review-form input[name="csrfmiddlewaretoken"]').value,
+          },
+          body: JSON.stringify({
+            review: reviewText,
+            version_id: document.getElementById('model-version').value || null,
+          }),
+        });
+
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        const data = await response.json();
+        renderPredictionResult(data);
+      } catch (err) {
+        resultContainer.innerHTML = `<p class="error">Error submitting review. Verify Django server status.</p>`;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Analyze Sentiment';
+      }
+    });
+
+    function renderPredictionResult(data) {
+      const resultContainer = document.getElementById('result-container');
+      const sentiment = data.prediction || 'Unknown';
+      const confidence = data.confidence ? (data.confidence * 100).toFixed(1) + '%' : 'N/A';
+      const isPos = sentiment.toLowerCase() === 'positive';
+
+      resultContainer.innerHTML = `
+        <div style="margin-top: 15px;">
+          <h3>Prediction Result:</h3>
+          <span class="badge ${isPos ? 'positive' : 'negative'}">${sentiment}</span>
+          <p style="margin-top: 8px; font-size: 0.9rem;">Confidence: <strong>${confidence}</strong></p>
+        </div>
+      `;
+    }
+
+    // 2. Fetch Metrics Handler (Step 3)
+    document.getElementById('refresh-metrics-btn').addEventListener('click', fetchExperimentMetrics);
+
+    async function fetchExperimentMetrics() {
+      const tableBody = document.getElementById('metrics-table-body');
+      tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center;">Loading...</td></tr>`;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/experiment-results/`, { method: 'GET' });
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        const experiments = await response.json();
+        renderExperimentChart(experiments);
+        
+        tableBody.innerHTML = '';
+        experiments.forEach(exp => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td><strong>${exp.model_name}</strong></td>
+            <td class="metric-val">${(exp.accuracy * 100).toFixed(2)}%</td>
+            <td class="metric-val">${(exp.f1_score * 100).toFixed(2)}%</td>
+          `;
+          tableBody.appendChild(row);
+        });
+      } catch (err) {
+        tableBody.innerHTML = `<tr><td colspan="3" class="error" style="text-align:center;">Failed to load metrics.</td></tr>`;
+      }
+    }
+
+    $(function () {
+  $.ajax({
+    url: `${API_BASE_URL}/api/model-versions/`,
+    method: 'GET',
+
+    success: function (versions) {
+      const labels = {
+        logistic_regression: 'Logistic Regression',
+        naive_bayes: 'Naive Bayes',
+      };
+
+      versions.forEach(function (version) {
+        const name = labels[version.model_name] || version.model_name;
+
+        $('<option>')
+          .val(version.id)
+          .text(`${name} — ${version.id.slice(0, 8)}`)
+          .appendTo('#model-version');
+      });
+
+      $('#model-version-status').text(
+        `${versions.length} saved model versions available.`
+      );
+    },
+
+    error: function () {
+      $('#model-version-status').text(
+        'Could not load saved versions. Check the Django server.'
+      );
+    },
+  });
+});
+  
+    // MLFlowPro: D3 chart, using the same response as the existing metrics table.
+    let experimentChartResults = [];
+
+    function renderExperimentChart(results) {
+      if (Array.isArray(results)) experimentChartResults = results;
+      const host = document.getElementById('experiment-chart');
+      host.replaceChildren();
+      if (!window.d3) {
+        host.textContent = 'Chart library could not load. Check your connection and refresh.';
+        return;
+      }
+
+      const rows = experimentChartResults.filter(row =>
+        [row.accuracy, row.f1_score].every(value =>
+          typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1
+        )
+      ).slice().sort((a, b) => {
+        const timeA = Date.parse(a.created_at) || 0;
+        const timeB = Date.parse(b.created_at) || 0;
+        return timeB - timeA || Number(b.id || 0) - Number(a.id || 0);
+      }).slice(0, 6);
+
+      if (!rows.length) {
+        host.textContent = 'No logged scores are available yet.';
+        return;
+      }
+      const names = {
+        logistic_regression: 'Logistic Regression',
+        naive_bayes: 'Naive Bayes',
+      };
+      const nameOf = row => {
+        const raw = String(row.model_name || 'Unknown model');
+        return names[raw.trim().toLowerCase().replace(/[\s-]+/g, '_')] || raw;
+      };
+      const choice = document.getElementById('chart-metric').value;
+      const metrics = [
+        {key:'accuracy', label:'Accuracy', color:'#0056b3'},
+        {key:'f1_score', label:'Macro F1', color:'#218838'},
+      ].filter(metric => choice === 'both' || choice === metric.key);
+      const width = 760;
+      const left = 220;
+      const right = 75;
+      const top = 42;
+      const rowHeight = 65;
+      const height = top + rows.length * rowHeight + 35;
+      const x = d3.scaleLinear().domain([0, 1]).range([left, width - right]);
+      const svg = d3.select(host).append('svg')
+        .attr('width', width).attr('height', height)
+        .attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('role', 'img')
+        .attr('aria-label', 'Logged accuracy and macro F1 by experiment run')
+        .style('max-width', '100%').style('height', 'auto');
+
+      metrics.forEach((metric, index) => {
+        svg.append('rect').attr('x', left + index * 150).attr('y', 9)
+          .attr('width', 12).attr('height', 12).attr('fill', metric.color);
+        svg.append('text').attr('x', left + 18 + index * 150).attr('y', 19)
+          .attr('font-size', 12).text(metric.label);
+      });
+      svg.append('g').attr('transform', `translate(0,${height - 29})`)
+        .call(d3.axisBottom(x).ticks(5).tickFormat(d3.format('.0%')))
+        .attr('font-size', 12);
+
+      rows.forEach((row, index) => {
+        const baseY = top + index * rowHeight;
+        svg.append('text').attr('x', left - 12).attr('y', baseY + 20)
+          .attr('text-anchor', 'end').attr('font-size', 12)
+          .text(`${nameOf(row)} / Run ${row.experiment}`);
+        metrics.forEach((metric, metricIndex) => {
+          const value = row[metric.key];
+          const y = baseY + metricIndex * 23;
+          const label = `${nameOf(row)}, Run ${row.experiment}: ${metric.label} ${(value * 100).toFixed(2)}%`;
+          svg.append('rect').attr('class', 'experiment-score-bar')
+            .attr('data-result-id', row.id).attr('data-metric', metric.key)
+            .attr('data-score', value)
+            .attr('x', left).attr('y', y).attr('width', x(value) - left)
+            .attr('height', 17).attr('rx', 2).attr('fill', metric.color)
+            .attr('tabindex', 0).attr('aria-label', label)
+            .append('title').text(label);
+          svg.append('text').attr('x', x(value) + 7).attr('y', y + 13)
+            .attr('font-size', 12).text(`${(value * 100).toFixed(2)}%`);
+        });
+      });
+    }
+
+    document.getElementById('chart-metric').addEventListener('change', () => renderExperimentChart());
+
+  </script>
+  <!-- MLFlowPro: AI suggestion handler -->
+  <script>
+    (() => {
+      const form = document.getElementById('ai-suggestion-form');
+      const button = document.getElementById('ai-suggestion-btn');
+      const status = document.getElementById('ai-suggestion-status');
+      const output = document.getElementById('ai-suggestion-output');
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (button.disabled) return;
+        const goal = document.getElementById('ai-experiment-goal').value.trim();
+        const code = document.getElementById('ai-access-code').value.trim();
+        if (!goal || !code) return;
+        button.disabled = true;
+        button.textContent = 'Generating...';
+        status.className = '';
+        status.textContent = 'Preparing an experiment suggestion...';
+        output.hidden = true;
+        output.textContent = '';
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 25000);
+        try {
+          const selected = document.getElementById('model-version');
+          const base = typeof API_BASE_URL === 'string' ? API_BASE_URL : '';
+          const response = await fetch(`${base}/api/ai-suggestions/`, {
+            method: 'POST', signal: controller.signal,
+            headers: {'Content-Type': 'application/json', 'X-MLFlowPro-Access-Code': code},
+            body: JSON.stringify({goal, version_id: selected ? selected.value || null : null}),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || 'Could not generate a suggestion.');
+          if (typeof data.suggestion !== 'string') throw new Error('The suggestion was empty.');
+          output.textContent = data.suggestion;
+          output.hidden = false;
+          status.textContent = `${data.notice} AI model: ${data.model}.`;
+        } catch (error) {
+          status.className = 'error';
+          status.textContent = error.name === 'AbortError'
+            ? 'The request took too long. Please try again.'
+            : error.message || 'Could not generate a suggestion.';
+        } finally {
+          clearTimeout(timeout);
+          button.disabled = false;
+          button.textContent = 'Suggest Experiment';
+        }
+      });
+    })();
+  </script>
+
+
+  <!-- MLFlowPro: shared experiment notes handler -->
+  <script>
+    (() => {
+      const form = document.getElementById('collaboration-connect-form');
+      const connectButton = document.getElementById('collaboration-connect-btn');
+      const saveButton = document.getElementById('collaboration-save-btn');
+      const loadButton = document.getElementById('collaboration-load-btn');
+      const notes = document.getElementById('collaboration-notes');
+      const status = document.getElementById('collaboration-status');
+      let socket = null;
+      let authorized = false;
+      let baseRevision = 0;
+      let savedBody = '';
+      let latest = null;
+      let pendingBody = null;
+      let heartbeat = null;
+      const dirty = () => notes.value !== savedBody;
+
+      function setDocument(document) {
+        latest = document;
+        notes.value = document.body;
+        savedBody = document.body;
+        baseRevision = document.revision;
+        status.textContent = `Connected. Saved revision ${baseRevision}.`;
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return;
+        const code = document.getElementById('collaboration-access-code').value.trim();
+        if (!code) return;
+        connectButton.disabled = true;
+        status.className = '';
+        status.textContent = 'Connecting to shared notes...';
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const active = new WebSocket(`${protocol}//${location.host}/ws/experiment-notes/`);
+        socket = active;
+        active.addEventListener('open', () => {
+          active.send(JSON.stringify({type: 'authenticate', access_code: code}));
+        });
+        active.addEventListener('message', (event) => {
+          let message;
+          try { message = JSON.parse(event.data); } catch (_) { return; }
+          if (message.type === 'ready') {
+            authorized = true;
+            notes.disabled = saveButton.disabled = loadButton.disabled = false;
+            connectButton.textContent = 'Connected';
+            const hadDraft = dirty();
+            if (!hadDraft) setDocument(message.document);
+            else {
+              latest = message.document;
+              status.textContent = 'Reconnected. Your draft is preserved. Copy it before loading the latest notes.';
+            }
+            clearInterval(heartbeat);
+            heartbeat = setInterval(() => {
+              if (active.readyState === WebSocket.OPEN) active.send(JSON.stringify({type:'ping'}));
+            }, 25000);
+          } else if (message.type === 'document' || message.type === 'conflict') {
+            const incoming = message.document;
+            if (latest && incoming.revision < latest.revision) return;
+            latest = incoming;
+            saveButton.disabled = pendingBody !== null && !message.own_save && message.type !== 'conflict';
+            if (message.type === 'conflict') {
+              pendingBody = null;
+              status.textContent = 'A teammate saved newer notes. Your draft is preserved. Copy it, then choose Load Latest Notes.';
+            } else if (message.own_save) {
+              const editedAfterSend = notes.value !== pendingBody;
+              savedBody = incoming.body;
+              baseRevision = incoming.revision;
+              pendingBody = null;
+              if (!editedAfterSend) setDocument(incoming);
+              else status.textContent = `Saved revision ${baseRevision}. You have additional unsaved changes.`;
+            } else if (!dirty()) setDocument(incoming);
+            else status.textContent = 'Newer shared notes are available. Your unsaved draft is preserved. Copy it before loading the latest notes.';
+          } else if (message.type === 'error') {
+            status.className = 'error';
+            status.textContent = message.error;
+            if (authorized) saveButton.disabled = false;
+            pendingBody = null;
+          }
+        });
+        active.addEventListener('error', () => {
+          status.className = 'error';
+          status.textContent = 'Could not connect to shared notes. Check the server and try Connect again.';
+        });
+        active.addEventListener('close', () => {
+          clearInterval(heartbeat);
+          authorized = false;
+          saveButton.disabled = loadButton.disabled = true;
+          connectButton.disabled = false;
+          connectButton.textContent = 'Connect';
+          pendingBody = null;
+          if (!status.classList.contains('error')) status.textContent = 'Disconnected. Your draft is preserved. Click Connect to reconnect.';
+        });
+      });
+
+      notes.addEventListener('input', () => {
+        status.textContent = latest && latest.revision > baseRevision
+          ? 'Your draft uses an older revision. Copy it before loading the latest shared notes.'
+          : dirty() ? 'Unsaved changes.' : `Connected. Saved revision ${baseRevision}.`;
+      });
+      saveButton.addEventListener('click', () => {
+        if (!authorized || !socket || socket.readyState !== WebSocket.OPEN) return;
+        pendingBody = notes.value;
+        saveButton.disabled = true;
+        status.className = '';
+        status.textContent = 'Saving notes...';
+        socket.send(JSON.stringify({type:'save', body:pendingBody, revision:baseRevision,
+                                   request_id:Date.now().toString(36) + Math.random().toString(36).slice(2)}));
+      });
+      loadButton.addEventListener('click', () => {
+        if (authorized && latest) { pendingBody = null; setDocument(latest); }
+      });
+      window.addEventListener('pagehide', () => { clearInterval(heartbeat); if(socket) socket.close(); });
+    })();
+  </script>
+
+
 </body>
 </html>

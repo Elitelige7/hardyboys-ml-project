@@ -1,0 +1,14 @@
+{
+  "Elitelige7": {
+    "name": "Elige Diallo",
+    "role": "Training and evaluating Naive Bayes and Logistic Regression with TF-IDF."
+  },
+  "elsow1": {
+    "name": "Elijah Sow",
+    "role": "Django backend development, database models and migrations, REST APIs, admin setup, and initial API tests."
+  },
+  "KHD-wq": {
+    "name": "Kasaan Dornelus",
+    "role": "Original frontend dashboard development using HTML, JavaScript, and CSS."
+  }
+}

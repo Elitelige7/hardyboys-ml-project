@@ -14,6 +14,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,9 +31,14 @@ if not SECRET_KEY:
     raise ValueError("DJANGO_SECRET_KEY is missing from the .env file.")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+
+render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+if render_hostname:
+    ALLOWED_HOSTS.append(render_hostname)
+    CSRF_TRUSTED_ORIGINS = [f"https://{render_hostname}"]
 
 
 # Application definition
@@ -46,11 +52,14 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'experiments',
     'rest_framework',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -63,7 +72,7 @@ ROOT_URLCONF = 'MLFlowPro.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -81,16 +90,23 @@ WSGI_APPLICATION = 'MLFlowPro.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME", "mlflowpro"),
-        "USER": os.getenv("DB_USER", "dondada"),
-        "PASSWORD": os.getenv("DB_PASSWORD", ""),
-        "HOST": os.getenv("DB_HOST", "localhost"),
-        "PORT": os.getenv("DB_PORT", "5432"),
+database_url = os.getenv("DATABASE_URL")
+
+if database_url:
+    DATABASES = {
+        "default": dj_database_url.parse(
+            database_url,
+            conn_max_age=600,
+            ssl_require=True,
+        )
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # Password validation
@@ -147,4 +163,82 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
     ],
+}
+
+CORS_ALLOW_ALL_ORIGINS = False
+
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# MLFlowPro: WebSocket collaboration settings
+if "daphne" not in INSTALLED_APPS:
+    INSTALLED_APPS.insert(0, "daphne")
+if "channels" not in INSTALLED_APPS:
+    INSTALLED_APPS.append("channels")
+ASGI_APPLICATION = "MLFlowPro.asgi.application"
+CHANNEL_LAYERS = {
+    "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"},
+}
+
+# MLFlowPro: GitHub OAuth team sign-in
+for _oauth_app in (
+    "allauth", "allauth.account", "allauth.socialaccount",
+    "allauth.socialaccount.providers.github",
+):
+    if _oauth_app not in INSTALLED_APPS:
+        INSTALLED_APPS.append(_oauth_app)
+_oauth_middleware = "allauth.account.middleware.AccountMiddleware"
+if _oauth_middleware not in MIDDLEWARE:
+    _oauth_auth_index = MIDDLEWARE.index("django.contrib.auth.middleware.AuthenticationMiddleware")
+    MIDDLEWARE.insert(_oauth_auth_index + 1, _oauth_middleware)
+AUTHENTICATION_BACKENDS = list(globals().get("AUTHENTICATION_BACKENDS", [
+    "django.contrib.auth.backends.ModelBackend",
+]))
+if "allauth.account.auth_backends.AuthenticationBackend" not in AUTHENTICATION_BACKENDS:
+    AUTHENTICATION_BACKENDS.append("allauth.account.auth_backends.AuthenticationBackend")
+for _oauth_template in TEMPLATES:
+    if _oauth_template.get("BACKEND") == "django.template.backends.django.DjangoTemplates":
+        _oauth_processors = _oauth_template.setdefault("OPTIONS", {}).setdefault("context_processors", [])
+        for _oauth_processor in (
+            "django.template.context_processors.request",
+            "experiments.github_auth.github_login_context",
+        ):
+            if _oauth_processor not in _oauth_processors:
+                _oauth_processors.append(_oauth_processor)
+        _oauth_template_dirs = _oauth_template.setdefault("DIRS", [])
+        if BASE_DIR / "templates" not in _oauth_template_dirs:
+            _oauth_template_dirs.append(BASE_DIR / "templates")
+
+SOCIALACCOUNT_ONLY = True
+SOCIALACCOUNT_ADAPTER = "experiments.github_auth.TeamSocialAccountAdapter"
+SOCIALACCOUNT_LOGIN_ON_GET = False
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_STORE_TOKENS = False
+SOCIALACCOUNT_QUERY_EMAIL = False
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = False
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_LOGIN_METHODS = {"username"}
+ACCOUNT_SIGNUP_FIELDS = ["username*"]
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+
+MLFLOWPRO_GITHUB_ALLOWED_USERS = tuple(
+    _github_name.strip() for _github_name in os.getenv(
+        "GITHUB_ALLOWED_USERS", "Elitelige7,elsow1,KHD-wq",
+    ).split(",") if _github_name.strip()
+)
+SOCIALACCOUNT_PROVIDERS = {
+    "github": {
+        "APP": {
+            "client_id": os.getenv("GITHUB_CLIENT_ID", "").strip(),
+            "secret": os.getenv("GITHUB_CLIENT_SECRET", "").strip(),
+            "key": "",
+        },
+        "SCOPE": [],
+        "OAUTH_PKCE_ENABLED": True,
+    },
 }

@@ -1,0 +1,36 @@
+[
+{
+  "model": "experiments.experiment",
+  "pk": 1,
+  "fields": {
+    "name": "IMDb sentiment comparison",
+    "description": "",
+    "dataset": "IMDb Movie Reviews",
+    "created_at": "2026-10-18T20:04:55.032Z"
+  }
+},
+{
+  "model": "experiments.experimentresult",
+  "pk": 1,
+  "fields": {
+    "experiment": 1,
+    "model_name": "Naive Bayes",
+    "accuracy": 0.8834,
+    "f1_score": 0.8834,
+    "training_time": 0.0,
+    "created_at": "2026-10-18T20:04:55.047Z"
+  }
+},
+{
+  "model": "experiments.experimentresult",
+  "pk": 2,
+  "fields": {
+    "experiment": 1,
+    "model_name": "Logistic Regression",
+    "accuracy": 0.9053,
+    "f1_score": 0.9053,
+    "training_time": 0.0,
+    "created_at": "2026-10-18T20:04:57.822Z"
+  }
+}
+]

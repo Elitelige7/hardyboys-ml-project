@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+models/versions/
+local_jobs/
+
+# Generated documentation and local runtime files
+docs/build/

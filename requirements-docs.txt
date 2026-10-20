@@ -1,0 +1,2 @@
+# Sphinx 8.2.3 supports the project's Python 3.11 environment.
+Sphinx==8.2.3
