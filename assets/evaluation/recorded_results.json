@@ -1,0 +1,47 @@
+{
+  "description": "Reported project evaluations, checked against the public experiment-results and model-version APIs on October 19, 2026.",
+  "source_urls": [
+    "https://hardyboys-ml-project.onrender.com/api/model-versions/",
+    "https://hardyboys-ml-project.onrender.com/api/experiment-results/"
+  ],
+  "baselines": [
+    {"model_name": "naive_bayes", "accuracy": 0.8834, "macro_f1": 0.8834, "source": "Previously recorded evaluation, imported into demo results", "training_scores_recorded": false},
+    {"model_name": "logistic_regression", "accuracy": 0.9053, "macro_f1": 0.9053, "source": "Previously recorded evaluation, imported into demo results", "training_scores_recorded": false}
+  ],
+  "tuned_run": {
+    "version_id": "1b1e98fc-5fca-4d0c-98c8-52e459f772ce",
+    "model_name": "logistic_regression",
+    "created_at_original": "2026-10-19T21:39:03.332184+00:00",
+    "accuracy": 0.9105576283150146,
+    "macro_f1": 0.9105466225183032,
+    "train_accuracy": 0.9886045632169419,
+    "train_macro_f1": 0.9886042877967489,
+    "best_c": 8.102356207766633,
+    "best_cv_macro_f1": 0.907489478465694,
+    "cv_folds": 3,
+    "n_trials": 6,
+    "selection_data": "Training split only; test data excluded from hyperparameter selection",
+    "dataset_rows": 49582,
+    "train_rows": 39665,
+    "test_rows": 9917,
+    "test_size": 0.2,
+    "random_state": 42,
+    "max_features": 50000,
+    "ngram_range": [1, 2],
+    "confusion_matrix": [[4460, 480], [407, 4570]],
+    "confusion_matrix_labels": ["negative", "positive"],
+    "confusion_matrix_axes": {"rows": "actual", "columns": "predicted"},
+    "final_fit_seconds": 12.260810099998707,
+    "tuning_seconds": 68.71636039999976,
+    "dataset_sha256": "dfc447764f82be365fa9c2beef4e8df89d3919e3da95f5088004797d79695aa2",
+    "artifact_sha256": "bc073b5bc789f52db927a8930638efd125f506a3d317d4e63b9256b75857687d",
+    "trials": [
+      {"trial": 1, "C": 1.0, "cv_macro_f1": 0.8981535211580888},
+      {"trial": 2, "C": 0.13292918943162169, "cv_macro_f1": 0.8677933813351036},
+      {"trial": 3, "C": 7.893350985363658, "cv_macro_f1": 0.9069344607604078},
+      {"trial": 4, "C": 0.01042297146664848, "cv_macro_f1": 0.8082869338836508},
+      {"trial": 5, "C": 8.102356207766633, "cv_macro_f1": 0.907489478465694},
+      {"trial": 6, "C": 6.39247539130814, "cv_macro_f1": 0.90693425990726}
+    ]
+  }
+}
