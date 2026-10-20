@@ -183,3 +183,62 @@ ASGI_APPLICATION = "MLFlowPro.asgi.application"
 CHANNEL_LAYERS = {
     "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"},
 }
+
+# MLFlowPro: GitHub OAuth team sign-in
+for _oauth_app in (
+    "allauth", "allauth.account", "allauth.socialaccount",
+    "allauth.socialaccount.providers.github",
+):
+    if _oauth_app not in INSTALLED_APPS:
+        INSTALLED_APPS.append(_oauth_app)
+_oauth_middleware = "allauth.account.middleware.AccountMiddleware"
+if _oauth_middleware not in MIDDLEWARE:
+    _oauth_auth_index = MIDDLEWARE.index("django.contrib.auth.middleware.AuthenticationMiddleware")
+    MIDDLEWARE.insert(_oauth_auth_index + 1, _oauth_middleware)
+AUTHENTICATION_BACKENDS = list(globals().get("AUTHENTICATION_BACKENDS", [
+    "django.contrib.auth.backends.ModelBackend",
+]))
+if "allauth.account.auth_backends.AuthenticationBackend" not in AUTHENTICATION_BACKENDS:
+    AUTHENTICATION_BACKENDS.append("allauth.account.auth_backends.AuthenticationBackend")
+for _oauth_template in TEMPLATES:
+    if _oauth_template.get("BACKEND") == "django.template.backends.django.DjangoTemplates":
+        _oauth_processors = _oauth_template.setdefault("OPTIONS", {}).setdefault("context_processors", [])
+        for _oauth_processor in (
+            "django.template.context_processors.request",
+            "experiments.github_auth.github_login_context",
+        ):
+            if _oauth_processor not in _oauth_processors:
+                _oauth_processors.append(_oauth_processor)
+        _oauth_template_dirs = _oauth_template.setdefault("DIRS", [])
+        if BASE_DIR / "templates" not in _oauth_template_dirs:
+            _oauth_template_dirs.append(BASE_DIR / "templates")
+
+SOCIALACCOUNT_ONLY = True
+SOCIALACCOUNT_ADAPTER = "experiments.github_auth.TeamSocialAccountAdapter"
+SOCIALACCOUNT_LOGIN_ON_GET = False
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_STORE_TOKENS = False
+SOCIALACCOUNT_QUERY_EMAIL = False
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = False
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_LOGIN_METHODS = {"username"}
+ACCOUNT_SIGNUP_FIELDS = ["username*"]
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+
+MLFLOWPRO_GITHUB_ALLOWED_USERS = tuple(
+    _github_name.strip() for _github_name in os.getenv(
+        "GITHUB_ALLOWED_USERS", "Elitelige7,elsow1,KHD-wq",
+    ).split(",") if _github_name.strip()
+)
+SOCIALACCOUNT_PROVIDERS = {
+    "github": {
+        "APP": {
+            "client_id": os.getenv("GITHUB_CLIENT_ID", "").strip(),
+            "secret": os.getenv("GITHUB_CLIENT_SECRET", "").strip(),
+            "key": "",
+        },
+        "SCOPE": [],
+        "OAUTH_PKCE_ENABLED": True,
+    },
+}

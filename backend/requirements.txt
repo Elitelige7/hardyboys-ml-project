@@ -27,3 +27,4 @@ pywin32; sys_platform == "win32"
 openai==2.54.0
 channels==4.3.2
 daphne==4.2.3
+django-allauth[socialaccount]==65.20.0

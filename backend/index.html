@@ -22,10 +22,30 @@
 </head>
 <body>
 
+  <!-- MLFlowPro: GitHub team sign-in -->
+  <div id="team-sign-in" style="margin-bottom:20px; padding:12px 0;">
+    {% if request.user.is_authenticated %}
+      <p>Signed in as <strong>{{ request.user.username }}</strong>.</p>
+      <form action="/team/logout/" method="post">
+        {% csrf_token %}
+        <button type="submit">Sign out</button>
+      </form>
+    {% else %}
+      <form action="/accounts/github/login/" method="post">
+        {% csrf_token %}
+        <button type="submit" id="github-sign-in-btn"{% if not github_login_configured %} disabled{% endif %}>Sign in with GitHub</button>
+      </form>
+      {% if not github_login_configured %}<p style="font-size:13px; color:#666;">Team sign-in is temporarily unavailable.</p>{% endif %}
+    {% endif %}
+  </div>
+
+
+
   <!-- STEP 1 & 2: Review Input & Result Display -->
   <div class="card">
     <h2>1. Live Review Sentiment Inference</h2>
     <form id="review-form">
+      {% csrf_token %}
       <label for="review-text"><strong>Enter Movie Review:</strong></label>
       <textarea id="review-text" rows="5" placeholder="e.g., The acting was brilliant and the story kept me engaged throughout!" required></textarea>
 
@@ -132,7 +152,10 @@
       try {
         const response = await fetch(`${API_BASE_URL}/api/predict/`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('#review-form input[name="csrfmiddlewaretoken"]').value,
+          },
           body: JSON.stringify({
             review: reviewText,
             version_id: document.getElementById('model-version').value || null,

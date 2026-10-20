@@ -20,7 +20,15 @@ router.register("model-versions", ModelVersionViewSet, basename="model-version",
 # MLFlowPro: AI experiment suggestions
 from experiments.ai_suggestions import suggest_experiment
 
+# MLFlowPro: GitHub OAuth routes
+from experiments.github_auth import github_login, github_callback, team_logout
+
 urlpatterns = [
+    path("accounts/github/login/", github_login),
+    path("accounts/github/login/callback/", github_callback),
+    path("team/logout/", team_logout, name="team-logout"),
+    path("accounts/", include("allauth.urls")),
+
     path("api/ai-suggestions/", suggest_experiment, name="ai-suggestions"),
     path("admin/", admin.site.urls),
     path("api/predict/", predict_review, name="predict-review"),
